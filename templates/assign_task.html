@@ -10,6 +10,29 @@
     <p><strong>Total Students:</strong> {{ total_students }} students</p>
 </div>
 
+<!-- Filter Section -->
+<div class="form-card">
+    <h3>Filter Students</h3>
+    <div class="form-row">
+        <div class="form-group half">
+            <label for="dept_filter">Department</label>
+            <select id="dept_filter" class="form-control">
+                <option value="All">All Departments</option>
+                {% for dept in departments %}
+                <option value="{{ dept }}">{{ dept }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group half">
+            <label for="class_filter">Class</label>
+            <select id="class_filter" class="form-control">
+                <option value="All">All Classes</option>
+            </select>
+        </div>
+    </div>
+    <button id="applyFilters" class="btn btn-primary">Apply Filters</button>
+</div>
+
 <div class="form-card">
     <h3>Student Assignment Status</h3>
 
@@ -25,7 +48,7 @@
 
     <form method="POST" action="{{ url_for('update_task_assignments', task_id=task.id) }}" id="assignForm">
         <div class="table-responsive">
-            <table class="table">
+            <table class="table" id="studentsTable">
                 <thead>
                     <tr>
                         <th>Select to Assign/Unassign</th>
@@ -38,7 +61,7 @@
                 </thead>
                 <tbody>
                     {% for student in all_students %}
-                    <tr>
+                    <tr data-department="{{ student.department }}" data-class="{{ student.class }}">
                         <td style="text-align: center; vertical-align: middle;">
                             <input type="checkbox" name="student_ids" value="{{ student.id }}" class="student-checkbox"
                                 {% if student.assigned %}checked{% endif %}>
@@ -85,29 +108,101 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        const deptFilter = document.getElementById('dept_filter');
+        const classFilter = document.getElementById('class_filter');
+        const applyBtn = document.getElementById('applyFilters');
+        const tableRows = document.querySelectorAll('#studentsTable tbody tr');
         const selectAllCheckbox = document.getElementById('select-all');
         const studentCheckboxes = document.querySelectorAll('.student-checkbox');
         const submitBtn = document.getElementById('submitBtn');
 
-        // Select All functionality
+        // Populate class filter based on selected department
+        function updateClassFilter() {
+            const selectedDept = deptFilter.value;
+            const classes = new Set();
+
+            // Get all unique classes from visible rows (considering department filter)
+            tableRows.forEach(row => {
+                if (selectedDept === 'All' || row.dataset.department === selectedDept) {
+                    classes.add(row.dataset.class);
+                }
+            });
+
+            // Update class filter dropdown
+            classFilter.innerHTML = '<option value="All">All Classes</option>';
+            Array.from(classes).sort().forEach(className => {
+                const option = document.createElement('option');
+                option.value = className;
+                option.textContent = className;
+                classFilter.appendChild(option);
+            });
+        }
+
+        // Apply filters to table
+        function applyFilters() {
+            const selectedDept = deptFilter.value;
+            const selectedClass = classFilter.value;
+
+            tableRows.forEach(row => {
+                const deptMatch = selectedDept === 'All' || row.dataset.department === selectedDept;
+                const classMatch = selectedClass === 'All' || row.dataset.class === selectedClass;
+
+                if (deptMatch && classMatch) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            // Update select all checkbox state
+            updateSelectAllState();
+        }
+
+        // Update select all checkbox based on visible rows
+        function updateSelectAllState() {
+            const visibleCheckboxes = Array.from(studentCheckboxes).filter(cb => {
+                const row = cb.closest('tr');
+                return row.style.display !== 'none';
+            });
+
+            const allChecked = visibleCheckboxes.length > 0 && visibleCheckboxes.every(cb => cb.checked);
+            const anyChecked = visibleCheckboxes.some(cb => cb.checked);
+
+            if (selectAllCheckbox) {
+                selectAllCheckbox.checked = allChecked;
+                selectAllCheckbox.indeterminate = !allChecked && anyChecked;
+            }
+        }
+
+        // Department change - update class filter
+        deptFilter.addEventListener('change', function () {
+            updateClassFilter();
+            // Don't auto-apply filters, wait for Apply button
+        });
+
+        // Apply button click
+        applyBtn.addEventListener('click', function () {
+            applyFilters();
+        });
+
+        // Select All functionality - only affects visible rows
         if (selectAllCheckbox) {
             selectAllCheckbox.addEventListener('change', function (e) {
-                studentCheckboxes.forEach(function (checkbox) {
+                const visibleCheckboxes = Array.from(studentCheckboxes).filter(cb => {
+                    const row = cb.closest('tr');
+                    return row.style.display !== 'none';
+                });
+
+                visibleCheckboxes.forEach(function (checkbox) {
                     checkbox.checked = e.target.checked;
                 });
             });
         }
 
-        // Update Select All checkbox when individual checkboxes change
+        // Individual checkbox changes
         studentCheckboxes.forEach(function (checkbox) {
             checkbox.addEventListener('change', function () {
-                if (selectAllCheckbox) {
-                    const allChecked = Array.from(studentCheckboxes).every(cb => cb.checked);
-                    const anyChecked = Array.from(studentCheckboxes).some(cb => cb.checked);
-
-                    selectAllCheckbox.checked = allChecked;
-                    selectAllCheckbox.indeterminate = !allChecked && anyChecked;
-                }
+                updateSelectAllState();
             });
         });
 
@@ -122,6 +217,9 @@
                 }
             });
         }
+
+        // Initialize class filter on page load
+        updateClassFilter();
     });
 </script>
 
@@ -175,6 +273,13 @@
 
     .alert-info ul {
         margin-top: 5px;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #cbd5e1;
+        border-radius: 4px;
     }
 </style>
 {% endblock %}

@@ -5,24 +5,24 @@
 
 <!-- Filter Form -->
 <div class="form-card">
-    <h3>Filter by Class / Department</h3>
-    <form method="GET" action="{{ url_for('reports') }}">
+    <h3>Filter by Department and Class</h3>
+    <form method="GET" action="{{ url_for('reports') }}" id="reportFilterForm">
         <div class="form-row">
-            <div class="form-group half">
-                <label for="class_filter">Class</label>
-                <select id="class_filter" name="class_filter">
-                    <option value="All">All Classes</option>
-                    {% for class in classes %}
-                    <option value="{{ class }}" {% if class==selected_class %}selected{% endif %}>{{ class }}</option>
-                    {% endfor %}
-                </select>
-            </div>
             <div class="form-group half">
                 <label for="dept_filter">Department</label>
                 <select id="dept_filter" name="dept_filter">
                     <option value="All">All Departments</option>
                     {% for dept in departments %}
                     <option value="{{ dept }}" {% if dept==selected_dept %}selected{% endif %}>{{ dept }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group half">
+                <label for="class_filter">Class</label>
+                <select id="class_filter" name="class_filter">
+                    <option value="All">All Classes</option>
+                    {% for class in classes %}
+                    <option value="{{ class }}" {% if class==selected_class %}selected{% endif %}>{{ class }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -77,4 +77,116 @@
         </tbody>
     </table>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const deptFilter = document.getElementById('dept_filter');
+        const classFilter = document.getElementById('class_filter');
+        const filterForm = document.getElementById('reportFilterForm');
+
+        // Store original class options
+        const originalClassOptions = Array.from(classFilter.options).map(opt => ({
+            value: opt.value,
+            text: opt.text,
+            selected: opt.selected
+        }));
+
+        // Department change - filter classes dynamically
+        deptFilter.addEventListener('change', function () {
+            const selectedDept = this.value;
+            const currentClass = classFilter.value;
+
+            // Clear current class options except "All Classes"
+            classFilter.innerHTML = '<option value="All">All Classes</option>';
+
+            if (selectedDept && selectedDept !== 'All') {
+                // Fetch classes for this department via API
+                fetch(`/api/classes/${selectedDept}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        data.classes.forEach(className => {
+                            const option = document.createElement('option');
+                            option.value = className;
+                            option.textContent = className;
+                            if (className === currentClass) {
+                                option.selected = true;
+                            }
+                            classFilter.appendChild(option);
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error fetching classes:', error);
+                        // Fallback: filter from original options
+                        const filteredClasses = originalClassOptions.filter(opt =>
+                            opt.value !== 'All' && opt.text.includes(selectedDept)
+                        );
+                        filteredClasses.forEach(opt => {
+                            const option = document.createElement('option');
+                            option.value = opt.value;
+                            option.textContent = opt.text;
+                            if (opt.value === currentClass) {
+                                option.selected = true;
+                            }
+                            classFilter.appendChild(option);
+                        });
+                    });
+            } else {
+                // Show all classes
+                originalClassOptions.forEach(opt => {
+                    if (opt.value !== 'All') {
+                        const option = document.createElement('option');
+                        option.value = opt.value;
+                        option.textContent = opt.text;
+                        if (opt.selected) {
+                            option.selected = true;
+                        }
+                        classFilter.appendChild(option);
+                    }
+                });
+            }
+        });
+
+        // Trigger change on page load if department is pre-selected
+        if (deptFilter.value && deptFilter.value !== 'All') {
+            deptFilter.dispatchEvent(new Event('change'));
+        }
+    });
+</script>
+
+<style>
+    .progress-bar {
+        background: #e2e8f0;
+        border-radius: 20px;
+        height: 24px;
+        width: 120px;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .progress-fill {
+        background: #2563eb;
+        color: white;
+        font-size: 0.75rem;
+        font-weight: 600;
+        height: 100%;
+        line-height: 24px;
+        text-align: center;
+        border-radius: 20px;
+        white-space: nowrap;
+    }
+
+    .btn-sm {
+        padding: 0.3rem 0.6rem;
+        font-size: 0.8rem;
+    }
+
+    .btn-edit {
+        background: #10b981;
+        color: white;
+    }
+
+    .btn-edit:hover {
+        background: #059669;
+    }
+</style>
 {% endblock %}

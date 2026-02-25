@@ -415,17 +415,21 @@ def bulk_attendance():
         date = request.form['date']
         class_filter = request.form.get('class_filter')
         dept_filter = request.form.get('dept_filter')
+        
         query = "SELECT id FROM students"
         params = []
         conditions = []
+        
         if class_filter and class_filter != 'All':
             conditions.append("class = ?")
             params.append(class_filter)
         if dept_filter and dept_filter != 'All':
             conditions.append("department = ?")
             params.append(dept_filter)
+            
         if conditions:
             query += " WHERE " + " AND ".join(conditions)
+            
         student_ids = [row['id'] for row in db.execute(query, params).fetchall()]
 
         success_count = 0
@@ -444,22 +448,30 @@ def bulk_attendance():
         flash(f'Bulk attendance marked: {success_count} new records, {exists_count} already existed.', 'success')
         return redirect(url_for('attendance'))
 
+    # GET: show form with filters
     classes, departments = get_class_department_options()
+    
     class_filter = request.args.get('class_filter', 'All')
     dept_filter = request.args.get('dept_filter', 'All')
+    
+    # Build query based on filters
     query = "SELECT id, usn, name, class, department FROM students"
     params = []
     conditions = []
-    if class_filter and class_filter != 'All':
-        conditions.append("class = ?")
-        params.append(class_filter)
+    
     if dept_filter and dept_filter != 'All':
         conditions.append("department = ?")
         params.append(dept_filter)
+    if class_filter and class_filter != 'All':
+        conditions.append("class = ?")
+        params.append(class_filter)
+        
     if conditions:
         query += " WHERE " + " AND ".join(conditions)
     query += " ORDER BY class, department, name"
+    
     students = db.execute(query, params).fetchall()
+    
     return render_template('bulk_attendance.html',
                            students=students,
                            classes=classes,
@@ -474,6 +486,16 @@ def bulk_attendance():
 # ------------------------------
 # Tasks Management
 # ------------------------------
+@app.route('/api/classes/<department>')
+@login_required
+def api_classes(department):
+    """Return distinct classes for a given department."""
+    db = get_db()
+    classes = db.execute(
+        "SELECT DISTINCT class FROM students WHERE department = ? ORDER BY class",
+        (department,)
+    ).fetchall()
+    return jsonify({'classes': [c['class'] for c in classes]})
 # ------------------------------
 # Tasks Management
 # ------------------------------
@@ -573,11 +595,17 @@ def assign_task_page(task_id):
         student_dict['assigned'] = student['id'] in assigned_ids
         students_with_status.append(student_dict)
     
+    # Get unique departments and classes for filters
+    departments = sorted(set(s['department'] for s in students_with_status))
+    classes = sorted(set(s['class'] for s in students_with_status))
+    
     return render_template('assign_task.html', 
                          task=task, 
                          all_students=students_with_status,
                          assigned_count=len(assigned_ids),
-                         total_students=len(all_students))
+                         total_students=len(all_students),
+                         departments=departments,
+                         classes=classes)
 
 @app.route('/tasks/update_assignments/<int:task_id>', methods=['POST'])
 @login_required
@@ -1023,15 +1051,17 @@ def reports():
     '''
     params = []
     conditions = []
-    if class_filter and class_filter != 'All':
-        conditions.append("s.class = ?")
-        params.append(class_filter)
+    
     if dept_filter and dept_filter != 'All':
         conditions.append("s.department = ?")
         params.append(dept_filter)
+    if class_filter and class_filter != 'All':
+        conditions.append("s.class = ?")
+        params.append(class_filter)
+        
     if conditions:
         query += " WHERE " + " AND ".join(conditions)
-    query += " GROUP BY s.id ORDER BY s.class, s.department, s.name"
+    query += " GROUP BY s.id ORDER BY s.department, s.class, s.name"
 
     students_data = db.execute(query, params).fetchall()
 
@@ -1051,13 +1081,26 @@ def reports():
             'percent': percent
         })
 
-    classes, departments = get_class_department_options()
+    # Get all departments and classes for filters
+    departments = db.execute("SELECT DISTINCT department FROM students ORDER BY department").fetchall()
+    departments = [d['department'] for d in departments]
+    
+    # If a department is selected, get only its classes, otherwise get all classes
+    if dept_filter and dept_filter != 'All':
+        classes = db.execute(
+            "SELECT DISTINCT class FROM students WHERE department = ? ORDER BY class",
+            (dept_filter,)
+        ).fetchall()
+    else:
+        classes = db.execute("SELECT DISTINCT class FROM students ORDER BY class").fetchall()
+    classes = [c['class'] for c in classes]
+
     return render_template('reports.html',
                            report=report_rows,
-                           classes=classes,
                            departments=departments,
-                           selected_class=class_filter,
-                           selected_dept=dept_filter)
+                           classes=classes,
+                           selected_dept=dept_filter,
+                           selected_class=class_filter)
 
 # ------------------------------
 # API endpoints for cascading dropdowns
@@ -1094,6 +1137,8 @@ def api_students(department):
         (department,)
     ).fetchall()
     return jsonify({'students': [{'id': s['id'], 'usn': s['usn'], 'name': s['name']} for s in students]})
+
+
 
 # ------------------------------
 # Run the app

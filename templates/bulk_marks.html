@@ -19,6 +19,14 @@
             <label for="semester">Semester <span class="required">*</span></label>
             <select id="semester" name="semester" required disabled>
                 <option value="">-- First select department --</option>
+                <option value="1">Semester 1</option>
+                <option value="2">Semester 2</option>
+                <option value="3">Semester 3</option>
+                <option value="4">Semester 4</option>
+                <option value="5">Semester 5</option>
+                <option value="6">Semester 6</option>
+                <option value="7">Semester 7</option>
+                <option value="8">Semester 8</option>
             </select>
         </div>
     </div>
@@ -89,32 +97,17 @@
         const marksSection = document.getElementById('marksEntrySection');
         const studentsTbody = document.getElementById('studentsTableBody');
 
-        // Department change -> fetch semesters
+        // Department change -> enable semester dropdown
         deptSelect.addEventListener('change', function () {
             const dept = this.value;
-            semSelect.innerHTML = '<option value="">Loading...</option>';
-            semSelect.disabled = true;
-            subjectSelect.innerHTML = '<option value="">-- First select semester --</option>';
-            subjectSelect.disabled = true;
-            loadBtn.disabled = true;
-            marksSection.style.display = 'none';
-
             if (dept) {
-                fetch(`/api/semesters/${dept}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        semSelect.innerHTML = '<option value="">-- Select Semester --</option>';
-                        data.semesters.forEach(sem => {
-                            semSelect.innerHTML += `<option value="${sem}">Semester ${sem}</option>`;
-                        });
-                        semSelect.disabled = false;
-                    })
-                    .catch(error => {
-                        console.error('Error fetching semesters:', error);
-                        semSelect.innerHTML = '<option value="">Error loading semesters</option>';
-                    });
+                semSelect.disabled = false;
+                // Reset semester selection
+                semSelect.value = '';
             } else {
-                semSelect.innerHTML = '<option value="">-- First select department --</option>';
+                semSelect.disabled = true;
+                subjectSelect.disabled = true;
+                loadBtn.disabled = true;
             }
         });
 
@@ -122,6 +115,7 @@
         semSelect.addEventListener('change', function () {
             const dept = deptSelect.value;
             const sem = this.value;
+
             subjectSelect.innerHTML = '<option value="">Loading...</option>';
             subjectSelect.disabled = true;
             loadBtn.disabled = true;
@@ -132,10 +126,14 @@
                     .then(response => response.json())
                     .then(data => {
                         subjectSelect.innerHTML = '<option value="">-- Select Subject --</option>';
-                        data.subjects.forEach(subj => {
-                            subjectSelect.innerHTML += `<option value="${subj.id}">${subj.name}</option>`;
-                        });
-                        subjectSelect.disabled = false;
+                        if (data.subjects && data.subjects.length > 0) {
+                            data.subjects.forEach(subj => {
+                                subjectSelect.innerHTML += `<option value="${subj.id}">${subj.name}</option>`;
+                            });
+                            subjectSelect.disabled = false;
+                        } else {
+                            subjectSelect.innerHTML = '<option value="">No subjects found</option>';
+                        }
                     })
                     .catch(error => {
                         console.error('Error fetching subjects:', error);
@@ -179,22 +177,27 @@
                 .then(response => response.json())
                 .then(data => {
                     studentsTbody.innerHTML = '';
-                    data.students.forEach(student => {
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                            <td>${student.usn}</td>
-                            <td>${student.name}</td>
-                            <td>
-                                <input type="number" step="0.01" name="marks_obtained" class="form-control" required>
-                                <input type="hidden" name="student_ids" value="${student.id}">
-                            </td>
-                            <td>
-                                <input type="number" step="0.01" name="max_marks" class="form-control" required>
-                            </td>
-                        `;
-                        studentsTbody.appendChild(row);
-                    });
-                    marksSection.style.display = 'block';
+                    if (data.students && data.students.length > 0) {
+                        data.students.forEach(student => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${student.usn}</td>
+                                <td>${student.name}</td>
+                                <td>
+                                    <input type="number" step="0.01" name="marks_obtained" class="form-control" required>
+                                    <input type="hidden" name="student_ids" value="${student.id}">
+                                </td>
+                                <td>
+                                    <input type="number" step="0.01" name="max_marks" class="form-control" required>
+                                </td>
+                            `;
+                            studentsTbody.appendChild(row);
+                        });
+                        marksSection.style.display = 'block';
+                    } else {
+                        studentsTbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">No students found in this department</td></tr>';
+                        marksSection.style.display = 'block';
+                    }
                 })
                 .catch(error => {
                     console.error('Error fetching students:', error);
@@ -206,6 +209,14 @@
         document.getElementById('bulkMarksForm').addEventListener('submit', function (e) {
             const marksInputs = document.querySelectorAll('input[name="marks_obtained"]');
             const maxInputs = document.querySelectorAll('input[name="max_marks"]');
+
+            // Check if there are any student rows
+            if (marksInputs.length === 0) {
+                e.preventDefault();
+                alert('No students to save marks for.');
+                return;
+            }
+
             for (let i = 0; i < marksInputs.length; i++) {
                 if (!marksInputs[i].value || !maxInputs[i].value) {
                     e.preventDefault();
@@ -216,4 +227,24 @@
         });
     });
 </script>
+
+<style>
+    .form-control {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #cbd5e1;
+        border-radius: 4px;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+</style>
 {% endblock %}
