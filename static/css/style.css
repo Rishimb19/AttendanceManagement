@@ -521,3 +521,59 @@ h2 {
 .task-link:hover {
     text-decoration: underline;
 }
+
+.table td, .table th {
+    text-align: left;
+    vertical-align: middle;
+}
+
+.text-center {
+    text-align: center !important;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.badge-secondary {
+    background: #94a3b8;
+    color: #1e293b;
+}
+
+.badge-present {
+    background: #d1fae5;
+    color: #065f46;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.badge-absent {
+    background: #fee2e2;
+    color: #991b1b;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.table td {
+    vertical-align: middle;
+}
+
+.student-checkbox {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+#select-all {
+    width: 18px;
+    height: 18px;
+    margin-right: 8px;
+    cursor: pointer;
+}

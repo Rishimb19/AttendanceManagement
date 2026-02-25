@@ -1,4 +1,3 @@
-<!-- templates/tasks.html -->
 {% extends "base.html" %}
 {% block title %}Tasks{% endblock %}
 {% block content %}
@@ -40,36 +39,38 @@
                 <th>Due Date</th>
                 <th>Assigned</th>
                 <th>Completed</th>
+                <th>Pending</th>
                 <th>Actions</th>
             </tr>
         </thead>
         <tbody>
-            <tbody>
-                {% for task in tasks %}
-                <tr>
-                    <td>
-                        <a href="{{ url_for('task_detail', task_id=task.id) }}" class="task-link">
-                            {{ task.title }}
-                        </a>
-                    </td>
-                    <td>{{ task.description or '-' }}</td>
-                    <td>{{ task.due_date }}</td>
-                    <td>{{ task.total_assigned or 0 }}</td>
-                    <td>{{ task.completed_count or 0 }}</td>
-                    <td>
-                        <a href="{{ url_for('assign_task', task_id=task.id) }}" class="btn btn-sm btn-edit">Assign</a>
-                        <form method="POST" action="{{ url_for('delete_task', id=task.id) }}" style="display:inline;"
-                            onsubmit="return confirm('Delete this task?');">
-                            <button type="submit" class="btn btn-sm btn-delete">Delete</button>
-                        </form>
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="6">No tasks added.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
+            {% for task in tasks %}
+            {% set pending = (task.total_assigned or 0) - (task.completed_count or 0) %}
+            <tr>
+                <td>
+                    <a href="{{ url_for('task_detail', task_id=task.id) }}" class="task-link">
+                        {{ task.title }}
+                    </a>
+                </td>
+                <td>{{ task.description or '-' }}</td>
+                <td>{{ task.due_date }}</td>
+                <td>{{ task.total_assigned or 0 }}</td>
+                <td>{{ task.completed_count or 0 }}</td>
+                <td>{{ pending if pending > 0 else 0 }}</td>
+                <td>
+                    <a href="{{ url_for('assign_task', task_id=task.id) }}" class="btn btn-sm btn-edit">Assign More</a>
+                    <form method="POST" action="{{ url_for('delete_task', id=task.id) }}" style="display:inline;"
+                        onsubmit="return confirm('Delete this task?');">
+                        <button type="submit" class="btn btn-sm btn-delete">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7" style="text-align: center;">No tasks added.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
     </table>
 </div>
 {% endblock %}

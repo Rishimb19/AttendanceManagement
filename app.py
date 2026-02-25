@@ -471,6 +471,12 @@ def bulk_attendance():
 # ------------------------------
 # Tasks Management
 # ------------------------------
+# ------------------------------
+# Tasks Management
+# ------------------------------
+# ------------------------------
+# Tasks Management
+# ------------------------------
 @app.route('/tasks', methods=['GET', 'POST'])
 @login_required
 def tasks():
@@ -479,6 +485,7 @@ def tasks():
         title = request.form['title'].strip()
         description = request.form['description'].strip()
         due_date = request.form['due_date']
+        
         if not title or not due_date:
             flash('Title and due date are required.', 'danger')
             return redirect(url_for('tasks'))
@@ -506,15 +513,17 @@ def tasks():
             flash('Task added. Use "Assign" to assign to students.', 'success')
         return redirect(url_for('tasks'))
 
+    # GET: Fetch all tasks with counts
     tasks_list = db.execute('''
         SELECT t.*,
-               COUNT(st.id) as total_assigned,
+               COUNT(DISTINCT st.id) as total_assigned,
                SUM(CASE WHEN st.status = 'Completed' THEN 1 ELSE 0 END) as completed_count
         FROM tasks t
         LEFT JOIN student_tasks st ON t.id = st.task_id
         GROUP BY t.id
         ORDER BY t.due_date
     ''').fetchall()
+    
     return render_template('tasks.html', tasks=tasks_list)
 
 @app.route('/tasks/<int:task_id>')
@@ -536,36 +545,97 @@ def task_detail(task_id):
 
     return render_template('task_detail.html', task=task, student_tasks=student_tasks)
 
-@app.route('/tasks/assign/<int:task_id>', methods=['GET', 'POST'])
+@app.route('/tasks/assign/<int:task_id>', methods=['GET'])
 @login_required
-def assign_task(task_id):
+def assign_task_page(task_id):
+    """Display the assignment page for a task"""
     db = get_db()
-    if request.method == 'POST':
-        student_ids = request.form.getlist('student_ids')
-        for sid in student_ids:
-            try:
-                db.execute(
-                    "INSERT INTO student_tasks (task_id, student_id, status) VALUES (?, ?, 'Pending')",
-                    (task_id, sid)
-                )
-            except sqlite3.IntegrityError:
-                pass
-        db.commit()
-        flash('Task assigned to selected students.', 'success')
+    
+    # Get the task first
+    task = db.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
+    if not task:
+        flash('Task not found.', 'danger')
         return redirect(url_for('tasks'))
-
+    
+    # Get all students with assignment status
+    all_students = db.execute("SELECT * FROM students ORDER BY class, department, name").fetchall()
+    
+    # Get already assigned student IDs
     assigned = db.execute(
         "SELECT student_id FROM student_tasks WHERE task_id = ?", (task_id,)
     ).fetchall()
     assigned_ids = [a['student_id'] for a in assigned]
-    if assigned_ids:
-        placeholders = ','.join('?' * len(assigned_ids))
-        query = f"SELECT * FROM students WHERE id NOT IN ({placeholders}) ORDER BY class, department, name"
-        students = db.execute(query, assigned_ids).fetchall()
-    else:
-        students = db.execute("SELECT * FROM students ORDER BY class, department, name").fetchall()
-    task = db.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
-    return render_template('assign_task.html', task=task, students=students)
+    
+    # Create a list with assignment status
+    students_with_status = []
+    for student in all_students:
+        student_dict = dict(student)
+        student_dict['assigned'] = student['id'] in assigned_ids
+        students_with_status.append(student_dict)
+    
+    return render_template('assign_task.html', 
+                         task=task, 
+                         all_students=students_with_status,
+                         assigned_count=len(assigned_ids),
+                         total_students=len(all_students))
+
+@app.route('/tasks/update_assignments/<int:task_id>', methods=['POST'])
+@login_required
+def update_task_assignments(task_id):
+    """Handle both assigning and unassigning students"""
+    db = get_db()
+    
+    # Get all student IDs from the form
+    selected_student_ids = request.form.getlist('student_ids')
+    selected_student_ids = [int(id) for id in selected_student_ids]
+    
+    # Get all students
+    all_students = db.execute("SELECT id FROM students").fetchall()
+    all_student_ids = [s['id'] for s in all_students]
+    
+    # Get currently assigned students
+    currently_assigned = db.execute(
+        "SELECT student_id FROM student_tasks WHERE task_id = ?", (task_id,)
+    ).fetchall()
+    currently_assigned_ids = [a['student_id'] for a in currently_assigned]
+    
+    # Students to assign (in selected but not currently assigned)
+    to_assign = [sid for sid in selected_student_ids if sid not in currently_assigned_ids]
+    
+    # Students to unassign (currently assigned but not in selected)
+    to_unassign = [sid for sid in currently_assigned_ids if sid not in selected_student_ids]
+    
+    # Perform assignments
+    assign_count = 0
+    for sid in to_assign:
+        try:
+            db.execute(
+                "INSERT INTO student_tasks (task_id, student_id, status) VALUES (?, ?, 'Pending')",
+                (task_id, sid)
+            )
+            assign_count += 1
+        except sqlite3.IntegrityError:
+            pass
+    
+    # Perform unassignments
+    unassign_count = 0
+    for sid in to_unassign:
+        db.execute(
+            "DELETE FROM student_tasks WHERE task_id = ? AND student_id = ?",
+            (task_id, sid)
+        )
+        unassign_count += 1
+    
+    db.commit()
+    
+    if assign_count > 0:
+        flash(f'Task assigned to {assign_count} new student(s).', 'success')
+    if unassign_count > 0:
+        flash(f'Task unassigned from {unassign_count} student(s).', 'info')
+    if assign_count == 0 and unassign_count == 0:
+        flash('No changes made to assignments.', 'info')
+    
+    return redirect(url_for('task_detail', task_id=task_id))
 
 @app.route('/tasks/complete/<int:task_id>/<int:student_id>', methods=['POST'])
 @login_required
@@ -631,8 +701,7 @@ def delete_task(id):
     db.commit()
     flash('Task deleted.', 'success')
     return redirect(url_for('tasks'))
-
-# ------------------------------
+#---------------
 # Subjects Management
 # ------------------------------
 @app.route('/subjects', methods=['GET', 'POST'])

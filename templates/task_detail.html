@@ -2,6 +2,7 @@
 {% block title %}Task Details{% endblock %}
 {% block content %}
 <h1>Task: {{ task.title }}</h1>
+
 <div class="task-meta">
     <p><strong>Due Date:</strong> {{ task.due_date }}</p>
     <p><strong>Description:</strong> {{ task.description or 'No description' }}</p>
@@ -32,6 +33,7 @@
             </tr>
         </thead>
         <tbody>
+            {% if student_tasks %}
             {% for st in student_tasks %}
             <tr>
                 <td>{{ st.usn }}</td>
@@ -40,7 +42,7 @@
                 <td>{{ st.department }}</td>
                 <td>
                     {% if st.status %}
-                    <span class="badge {{ 'badge-present' if st.status == 'Completed' else 'badge-absent' }}">
+                    <span class="badge {% if st.status == 'Completed' %}badge-present{% else %}badge-absent{% endif %}">
                         {{ st.status }}
                     </span>
                     {% else %}
@@ -69,11 +71,12 @@
                     {% endif %}
                 </td>
             </tr>
+            {% endfor %}
             {% else %}
             <tr>
-                <td colspan="7">No students found.</td>
+                <td colspan="7" style="text-align: center;">No students found for this task.</td>
             </tr>
-            {% endfor %}
+            {% endif %}
         </tbody>
     </table>
 </div>
