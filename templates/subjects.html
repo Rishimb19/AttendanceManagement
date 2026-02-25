@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block title %}Subjects{% endblock %}
+{% block content %}
+<h1>Subject Management</h1>
+
+<!-- Filter Form -->
+<div class="form-card">
+    <h3>Filter Subjects</h3>
+    <form method="GET" action="{{ url_for('subjects') }}">
+        <div class="form-row">
+            <div class="form-group half">
+                <label for="filter_course">Course</label>
+                <select id="filter_course" name="course">
+                    <option value="">All Courses</option>
+                    {% for course in courses %}
+                    <option value="{{ course }}" {% if course==filter_course %}selected{% endif %}>{{ course }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group half">
+                <label for="filter_semester">Semester</label>
+                <select id="filter_semester" name="semester">
+                    <option value="">All Semesters</option>
+                    {% for sem in semesters %}
+                    <option value="{{ sem }}" {% if sem|string==filter_semester %}selected{% endif %}>{{ sem }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Apply Filters</button>
+        <a href="{{ url_for('subjects') }}" class="btn btn-secondary">Clear Filters</a>
+    </form>
+</div>
+
+<!-- Add Subject Form -->
+<div class="form-card">
+    <h3>Add New Subject</h3>
+    <form method="POST" action="{{ url_for('subjects') }}">
+        <div class="form-row">
+            <div class="form-group half">
+                <label for="name">Subject Name <span class="required">*</span></label>
+                <input type="text" id="name" name="name" required>
+            </div>
+            <div class="form-group half">
+                <label for="course">Course <span class="required">*</span></label>
+                <select id="course" name="course" required>
+                    <option value="">-- Select Course --</option>
+                    {% for course in courses %}
+                    <option value="{{ course }}">{{ course }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group half">
+                <label for="semester">Semester <span class="required">*</span></label>
+                <select id="semester" name="semester" required>
+                    <option value="">-- Select Semester --</option>
+                    {% for sem in semesters %}
+                    <option value="{{ sem }}">{{ sem }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group half">
+                <label for="description">Description</label>
+                <input type="text" id="description" name="description">
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Add Subject</button>
+    </form>
+</div>
+
+<!-- Subject List -->
+<h2>Subjects List</h2>
+<div class="table-responsive">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Subject Name</th>
+                <th>Course</th>
+                <th>Semester</th>
+                <th>Description</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for subject in subjects %}
+            <tr>
+                <td>{{ subject.name }}</td>
+                <td>{{ subject.course }}</td>
+                <td>{{ subject.semester }}</td>
+                <td>{{ subject.description or '-' }}</td>
+                <td>
+                    <button class="btn btn-sm btn-edit"
+                        onclick='openEditSubjectModal({{ subject.id }}, {{ subject.name|tojson }}, {{ subject.course|tojson }}, {{ subject.semester }}, {{ subject.description|tojson }})'>
+                        Edit
+                    </button>
+                    <form method="POST" action="{{ url_for('delete_subject', id=subject.id) }}" style="display:inline;"
+                        onsubmit="return confirm('Delete this subject? All associated marks will also be deleted.');">
+                        <button type="submit" class="btn btn-sm btn-delete">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5">No subjects found for the selected filters.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Edit Subject Modal -->
+<div id="editSubjectModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeEditSubjectModal()">&times;</span>
+        <h3>Edit Subject</h3>
+        <form method="POST" action="" id="editSubjectForm">
+            <div class="form-row">
+                <div class="form-group half">
+                    <label for="edit_subject_name">Subject Name <span class="required">*</span></label>
+                    <input type="text" id="edit_subject_name" name="name" required>
+                </div>
+                <div class="form-group half">
+                    <label for="edit_course">Course <span class="required">*</span></label>
+                    <select id="edit_course" name="course" required>
+                        {% for course in courses %}
+                        <option value="{{ course }}">{{ course }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group half">
+                    <label for="edit_semester">Semester <span class="required">*</span></label>
+                    <select id="edit_semester" name="semester" required>
+                        {% for sem in semesters %}
+                        <option value="{{ sem }}">{{ sem }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group half">
+                    <label for="edit_description">Description</label>
+                    <input type="text" id="edit_description" name="description">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Update Subject</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openEditSubjectModal(id, name, course, semester, description) {
+        const modal = document.getElementById("editSubjectModal");
+        const form = document.getElementById("editSubjectForm");
+        form.action = `/subjects/edit/${id}`;
+        document.getElementById("edit_subject_name").value = name;
+        document.getElementById("edit_course").value = course;
+        document.getElementById("edit_semester").value = semester;
+        document.getElementById("edit_description").value = description || '';
+        modal.style.display = "block";
+    }
+
+    function closeEditSubjectModal() {
+        document.getElementById("editSubjectModal").style.display = "none";
+    }
+
+    window.onclick = function (event) {
+        const modal = document.getElementById("editSubjectModal");
+        if (event.target === modal) {
+            modal.style.display = "none";
+        }
+    };
+</script>
+{% endblock %}

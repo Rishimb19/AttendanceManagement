@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Student Report{% endblock %}
+{% block content %}
+<h1>Student Report: {{ student.name }}</h1>
+
+<div class="task-meta">
+    <p><strong>USN:</strong> {{ student.usn }}</p>
+    <p><strong>Class:</strong> {{ student.class }}</p>
+    <p><strong>Department:</strong> {{ student.department }}</p>
+    <p><strong>Email:</strong> {{ student.email }}</p>
+    <p><strong>Phone:</strong> {{ student.phone or '-' }}</p>
+    <p><strong>Parent Name:</strong> {{ student.parent_name or '-' }}</p>
+    <p><strong>Parent Phone:</strong> {{ student.parent_phone or '-' }}</p>
+    <p><strong>Parent Email:</strong> {{ student.parent_email or '-' }}</p>
+</div>
+
+<div class="cards">
+    <div class="card">
+        <h3>Total Days</h3>
+        <p class="card-value">{{ total_days }}</p>
+    </div>
+    <div class="card">
+        <h3>Present</h3>
+        <p class="card-value">{{ present }}</p>
+    </div>
+    <div class="card">
+        <h3>Absent</h3>
+        <p class="card-value">{{ absent }}</p>
+    </div>
+    <div class="card">
+        <h3>Attendance %</h3>
+        <p class="card-value">{{ attendance_percent }}%</p>
+    </div>
+</div>
+
+<h2>Marks</h2>
+{% if marks %}
+<div class="table-responsive">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Subject</th>
+                <th>Course</th>
+                <th>Sem</th>
+                <th>Exam Type</th>
+                <th>Marks Obtained</th>
+                <th>Max Marks</th>
+                <th>Percentage</th>
+                <th>Exam Date</th>
+                <th>Remarks</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for m in marks %}
+            <tr>
+                <td>{{ m.subject_name }}</td>
+                <td>{{ m.course }}</td>
+                <td>{{ m.semester }}</td>
+                <td>{{ m.exam_type }}</td>
+                <td>{{ m.marks_obtained }}</td>
+                <td>{{ m.max_marks }}</td>
+                <td>{{ "%.2f"|format(m.marks_obtained / m.max_marks * 100) }}%</td>
+                <td>{{ m.exam_date or '-' }}</td>
+                <td>{{ m.remarks or '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<p>No marks recorded.</p>
+{% endif %}
+
+<h2>Tasks</h2>
+{% if tasks %}
+<div class="table-responsive">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Task Title</th>
+                <th>Due Date</th>
+                <th>Status</th>
+                <th>Completed Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for t in tasks %}
+            <tr>
+                <td>{{ t.title }}</td>
+                <td>{{ t.due_date }}</td>
+                <td>
+                    <span class="badge {{ 'badge-present' if t.status == 'Completed' else 'badge-absent' }}">
+                        {{ t.status }}
+                    </span>
+                </td>
+                <td>{{ t.completed_date or '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<p>No tasks assigned.</p>
+{% endif %}
+
+<div class="form-actions">
+    <a href="{{ url_for('reports') }}" class="btn btn-secondary">Back to Reports</a>
+</div>
+{% endblock %}

@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<h1>Dashboard</h1>
+
+<!-- Summary Cards (Task cards removed) -->
+<div class="cards">
+    <div class="card">
+        <h3>Total Students</h3>
+        <p class="card-value">{{ total_students }}</p>
+    </div>
+    <div class="card">
+        <h3>Attendance Records</h3>
+        <p class="card-value">{{ total_attendance }}</p>
+    </div>
+    <div class="card">
+        <h3>Present</h3>
+        <p class="card-value">{{ present_count }}</p>
+    </div>
+    <div class="card">
+        <h3>Absent</h3>
+        <p class="card-value">{{ absent_count }}</p>
+    </div>
+    <div class="card">
+        <h3>Overall Attendance</h3>
+        <p class="card-value">{{ overall_percent }}%</p>
+    </div>
+</div>
+
+<!-- Date Filter for Department-wise Attendance -->
+<div class="form-card">
+    <h3>View Attendance by Department</h3>
+    <form method="GET" action="{{ url_for('dashboard') }}">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="date">Select Date</label>
+                <input type="date" id="date" name="date" value="{{ selected_date }}">
+            </div>
+            <div class="form-group">
+                <button type="submit" class="btn btn-primary">Show</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Department-wise Attendance Table -->
+<h2>Attendance for {{ selected_date }}</h2>
+<div class="table-responsive">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Department</th>
+                <th>Present</th>
+                <th>Absent</th>
+                <th>Total Students</th>
+                <th>Attendance %</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for dept in dept_attendance %}
+            <tr>
+                <td>{{ dept.department }}</td>
+                <td>{{ dept.present or 0 }}</td>
+                <td>{{ dept.absent or 0 }}</td>
+                <td>{{ dept.total_students }}</td>
+                <td>
+                    {% if dept.total_students > 0 %}
+                    {{ "%.2f"|format((dept.present or 0) / dept.total_students * 100) }}%
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5">No students found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Recent Attendance (keep as is) -->
+<div class="recent-section">
+    <h2>Recent Attendance</h2>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Student</th>
+                <th>Date</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in recent %}
+            <tr>
+                <td>{{ row.name }}</td>
+                <td>{{ row.date }}</td>
+                <td><span class="badge {{ 'badge-present' if row.status == 'Present' else 'badge-absent' }}">{{
+                        row.status }}</span></td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="3">No recent attendance.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

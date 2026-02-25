@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+{% block title %}Bulk Marks Entry{% endblock %}
+{% block content %}
+<h1>Bulk Marks Entry</h1>
+
+<div class="form-card">
+    <h3>Select Department, Semester and Subject</h3>
+    <div class="form-row">
+        <div class="form-group half">
+            <label for="department">Department (Course) <span class="required">*</span></label>
+            <select id="department" name="department" required>
+                <option value="">-- Select Department --</option>
+                {% for course in courses %}
+                <option value="{{ course }}">{{ course }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group half">
+            <label for="semester">Semester <span class="required">*</span></label>
+            <select id="semester" name="semester" required disabled>
+                <option value="">-- First select department --</option>
+            </select>
+        </div>
+    </div>
+    <div class="form-row">
+        <div class="form-group half">
+            <label for="subject">Subject <span class="required">*</span></label>
+            <select id="subject" name="subject_id" required disabled>
+                <option value="">-- First select semester --</option>
+            </select>
+        </div>
+        <div class="form-group half">
+            <label for="exam_type">Exam Type <span class="required">*</span></label>
+            <input type="text" id="exam_type" name="exam_type" required placeholder="e.g., Midterm, Final">
+        </div>
+    </div>
+    <div class="form-row">
+        <div class="form-group half">
+            <label for="exam_date">Exam Date</label>
+            <input type="date" id="exam_date" name="exam_date">
+        </div>
+        <div class="form-group half">
+            <label for="remarks">Remarks (applies to all)</label>
+            <textarea id="remarks" name="remarks" rows="2"></textarea>
+        </div>
+    </div>
+    <button type="button" id="loadStudentsBtn" class="btn btn-primary" disabled>Load Students</button>
+</div>
+
+<!-- Student marks entry form (hidden until subject selected) -->
+<div id="marksEntrySection" style="display: none;">
+    <div class="form-card">
+        <h3>Enter Marks for Selected Subject</h3>
+        <form method="POST" action="{{ url_for('bulk_marks') }}" id="bulkMarksForm">
+            <input type="hidden" name="subject_id" id="hidden_subject_id">
+            <input type="hidden" name="exam_type" id="hidden_exam_type">
+            <input type="hidden" name="exam_date" id="hidden_exam_date">
+            <input type="hidden" name="remarks" id="hidden_remarks">
+
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>USN</th>
+                            <th>Name</th>
+                            <th>Marks Obtained</th>
+                            <th>Max Marks</th>
+                        </tr>
+                    </thead>
+                    <tbody id="studentsTableBody">
+                        <!-- Students will be loaded here dynamically -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Save All Marks</button>
+                <a href="{{ url_for('marks') }}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const deptSelect = document.getElementById('department');
+        const semSelect = document.getElementById('semester');
+        const subjectSelect = document.getElementById('subject');
+        const loadBtn = document.getElementById('loadStudentsBtn');
+        const marksSection = document.getElementById('marksEntrySection');
+        const studentsTbody = document.getElementById('studentsTableBody');
+
+        // Department change -> fetch semesters
+        deptSelect.addEventListener('change', function () {
+            const dept = this.value;
+            semSelect.innerHTML = '<option value="">Loading...</option>';
+            semSelect.disabled = true;
+            subjectSelect.innerHTML = '<option value="">-- First select semester --</option>';
+            subjectSelect.disabled = true;
+            loadBtn.disabled = true;
+            marksSection.style.display = 'none';
+
+            if (dept) {
+                fetch(`/api/semesters/${dept}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        semSelect.innerHTML = '<option value="">-- Select Semester --</option>';
+                        data.semesters.forEach(sem => {
+                            semSelect.innerHTML += `<option value="${sem}">Semester ${sem}</option>`;
+                        });
+                        semSelect.disabled = false;
+                    })
+                    .catch(error => {
+                        console.error('Error fetching semesters:', error);
+                        semSelect.innerHTML = '<option value="">Error loading semesters</option>';
+                    });
+            } else {
+                semSelect.innerHTML = '<option value="">-- First select department --</option>';
+            }
+        });
+
+        // Semester change -> fetch subjects
+        semSelect.addEventListener('change', function () {
+            const dept = deptSelect.value;
+            const sem = this.value;
+            subjectSelect.innerHTML = '<option value="">Loading...</option>';
+            subjectSelect.disabled = true;
+            loadBtn.disabled = true;
+            marksSection.style.display = 'none';
+
+            if (dept && sem) {
+                fetch(`/api/subjects/${dept}/${sem}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        subjectSelect.innerHTML = '<option value="">-- Select Subject --</option>';
+                        data.subjects.forEach(subj => {
+                            subjectSelect.innerHTML += `<option value="${subj.id}">${subj.name}</option>`;
+                        });
+                        subjectSelect.disabled = false;
+                    })
+                    .catch(error => {
+                        console.error('Error fetching subjects:', error);
+                        subjectSelect.innerHTML = '<option value="">Error loading subjects</option>';
+                    });
+            } else {
+                subjectSelect.innerHTML = '<option value="">-- First select semester --</option>';
+            }
+        });
+
+        // Subject change -> enable load button
+        subjectSelect.addEventListener('change', function () {
+            loadBtn.disabled = !this.value;
+        });
+
+        // Load students button click
+        loadBtn.addEventListener('click', function () {
+            const dept = deptSelect.value;
+            const subjectId = subjectSelect.value;
+            const examType = document.getElementById('exam_type').value;
+            const examDate = document.getElementById('exam_date').value;
+            const remarks = document.getElementById('remarks').value;
+
+            if (!subjectId) {
+                alert('Please select a subject');
+                return;
+            }
+            if (!examType) {
+                alert('Please enter exam type');
+                return;
+            }
+
+            // Set hidden fields for form submission
+            document.getElementById('hidden_subject_id').value = subjectId;
+            document.getElementById('hidden_exam_type').value = examType;
+            document.getElementById('hidden_exam_date').value = examDate;
+            document.getElementById('hidden_remarks').value = remarks;
+
+            // Fetch students for this department
+            fetch(`/api/students/${dept}`)
+                .then(response => response.json())
+                .then(data => {
+                    studentsTbody.innerHTML = '';
+                    data.students.forEach(student => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${student.usn}</td>
+                            <td>${student.name}</td>
+                            <td>
+                                <input type="number" step="0.01" name="marks_obtained" class="form-control" required>
+                                <input type="hidden" name="student_ids" value="${student.id}">
+                            </td>
+                            <td>
+                                <input type="number" step="0.01" name="max_marks" class="form-control" required>
+                            </td>
+                        `;
+                        studentsTbody.appendChild(row);
+                    });
+                    marksSection.style.display = 'block';
+                })
+                .catch(error => {
+                    console.error('Error fetching students:', error);
+                    alert('Error loading students');
+                });
+        });
+
+        // Ensure form submission includes all fields correctly
+        document.getElementById('bulkMarksForm').addEventListener('submit', function (e) {
+            const marksInputs = document.querySelectorAll('input[name="marks_obtained"]');
+            const maxInputs = document.querySelectorAll('input[name="max_marks"]');
+            for (let i = 0; i < marksInputs.length; i++) {
+                if (!marksInputs[i].value || !maxInputs[i].value) {
+                    e.preventDefault();
+                    alert('Please fill all marks and max marks fields');
+                    return;
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}
