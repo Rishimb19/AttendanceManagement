@@ -58,7 +58,9 @@
                 <td>{{ task.completed_count or 0 }}</td>
                 <td>{{ pending if pending > 0 else 0 }}</td>
                 <td>
-                    <a href="{{ url_for('assign_task', task_id=task.id) }}" class="btn btn-sm btn-edit">Assign More</a>
+                    <!-- FIXED: Changed from 'assign_task' to 'assign_task_page' -->
+                    <a href="{{ url_for('assign_task_page', task_id=task.id) }}" class="btn btn-sm btn-edit">Assign
+                        More</a>
                     <form method="POST" action="{{ url_for('delete_task', id=task.id) }}" style="display:inline;"
                         onsubmit="return confirm('Delete this task?');">
                         <button type="submit" class="btn btn-sm btn-delete">Delete</button>
