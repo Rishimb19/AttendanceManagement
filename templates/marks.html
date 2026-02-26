@@ -6,6 +6,11 @@
 <div class="form-actions" style="margin-bottom: 1rem;">
     <a href="{{ url_for('bulk_marks') }}" class="btn btn-primary">➕ Bulk Marks Entry</a>
 </div>
+<!-- Add this after the h1 or near the Bulk Marks Entry button -->
+<div class="form-actions" style="margin-bottom: 1rem; display: flex; gap: 10px;">
+
+    <a href="{{ url_for('bulk_upload_marks') }}" class="btn btn-success">📤 Bulk Upload Marks (CSV)</a>
+</div>
 
 <!-- Add Individual Mark Form -->
 <div class="form-card">

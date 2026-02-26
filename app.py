@@ -1,5 +1,7 @@
 # app.py
 import sqlite3
+import csv
+import io
 from datetime import datetime
 from functools import wraps
 from flask import (
@@ -8,6 +10,7 @@ from flask import (
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask import jsonify
+
 # ------------------------------
 # App Initialization
 # ------------------------------
@@ -979,6 +982,128 @@ def delete_mark(id):
     flash('Marks deleted.', 'success')
     return redirect(url_for('marks'))
 
+@app.route('/marks/bulk_upload', methods=['GET', 'POST'])
+@login_required
+def bulk_upload_marks():
+    if request.method == 'POST':
+        if 'csv_file' not in request.files:
+            flash('No file selected.', 'danger')
+            return redirect(request.url)
+        
+        file = request.files['csv_file']
+        if file.filename == '':
+            flash('No file selected.', 'danger')
+            return redirect(request.url)
+        
+        if not file.filename.endswith('.csv'):
+            flash('Please upload a CSV file.', 'danger')
+            return redirect(request.url)
+        
+        # Read CSV file
+        stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
+        csv_reader = csv.reader(stream)
+        
+        # Skip header row
+        next(csv_reader, None)
+        
+        db = get_db()
+        success_count = 0
+        error_count = 0
+        errors = []
+        line_num = 1
+        
+        for row in csv_reader:
+            line_num += 1
+            try:
+                # Expected columns: 
+                # Student_USN, Subject_ID, Exam_Type, Marks_Obtained, Max_Marks, Exam_Date, Remarks
+                if len(row) < 6:
+                    error_count += 1
+                    errors.append(f"Row {line_num}: Insufficient columns. Expected at least 6 columns.")
+                    continue
+                
+                student_usn = row[0].strip()
+                subject_id = row[1].strip()
+                exam_type = row[2].strip()
+                
+                # Handle marks as float
+                try:
+                    marks_obtained = float(row[3].strip())
+                except ValueError:
+                    error_count += 1
+                    errors.append(f"Row {line_num}: Invalid marks_obtained value - {row[3]}")
+                    continue
+                
+                try:
+                    max_marks = float(row[4].strip())
+                except ValueError:
+                    error_count += 1
+                    errors.append(f"Row {line_num}: Invalid max_marks value - {row[4]}")
+                    continue
+                
+                exam_date = row[5].strip() if len(row) > 5 and row[5].strip() else None
+                remarks = row[6].strip() if len(row) > 6 else ''
+                
+                if not student_usn or not subject_id or not exam_type:
+                    error_count += 1
+                    errors.append(f"Row {line_num}: Missing required fields (Student_USN, Subject_ID, Exam_Type)")
+                    continue
+                
+                # Get student_id from USN
+                student = db.execute(
+                    "SELECT id FROM students WHERE usn = ?", 
+                    (student_usn,)
+                ).fetchone()
+                
+                if not student:
+                    error_count += 1
+                    errors.append(f"Row {line_num}: Student with USN '{student_usn}' not found")
+                    continue
+                
+                student_id = student['id']
+                
+                # Verify subject exists
+                subject = db.execute(
+                    "SELECT id FROM subjects WHERE id = ?", 
+                    (subject_id,)
+                ).fetchone()
+                
+                if not subject:
+                    error_count += 1
+                    errors.append(f"Row {line_num}: Subject with ID '{subject_id}' not found")
+                    continue
+                
+                # Insert marks
+                db.execute(
+                    '''INSERT INTO marks 
+                       (student_id, subject_id, exam_type, marks_obtained, max_marks, exam_date, remarks) 
+                       VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                    (student_id, subject_id, exam_type, marks_obtained, max_marks, exam_date, remarks)
+                )
+                db.commit()
+                success_count += 1
+                
+            except sqlite3.IntegrityError as e:
+                error_count += 1
+                errors.append(f"Row {line_num}: Database error - {str(e)}")
+            except Exception as e:
+                error_count += 1
+                errors.append(f"Row {line_num}: Error - {str(e)}")
+        
+        if success_count > 0:
+            flash(f'Successfully added {success_count} marks records.', 'success')
+        if error_count > 0:
+            flash(f'Failed to add {error_count} records. Check errors below.', 'warning')
+            session['marks_upload_errors'] = errors
+        
+        return redirect(url_for('marks'))
+    
+    # GET request - show upload form
+    # Get subjects for dropdown reference
+    db = get_db()
+    subjects = db.execute("SELECT id, name, course, semester FROM subjects ORDER BY course, semester, name").fetchall()
+    return render_template('bulk_marks_upload.html', subjects=subjects)
+
 # ------------------------------
 # Individual Student Report
 # ------------------------------
@@ -1030,6 +1155,92 @@ def student_report(student_id):
                            attendance_percent=attendance_percent,
                            marks=marks_data,
                            tasks=tasks)
+@app.route('/students/clear_errors', methods=['POST'])
+@login_required
+def clear_upload_errors():
+    session.pop('upload_errors', None)
+    return redirect(url_for('bulk_upload_students'))
+@app.route('/students/bulk_upload', methods=['GET', 'POST'])
+@login_required
+def bulk_upload_students():
+    if request.method == 'POST':
+        if 'csv_file' not in request.files:
+            flash('No file selected.', 'danger')
+            return redirect(request.url)
+        
+        file = request.files['csv_file']
+        if file.filename == '':
+            flash('No file selected.', 'danger')
+            return redirect(request.url)
+        
+        if not file.filename.endswith('.csv'):
+            flash('Please upload a CSV file.', 'danger')
+            return redirect(request.url)
+        
+        # Read CSV file
+        stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
+        csv_reader = csv.reader(stream)
+        
+        # Skip header row
+        next(csv_reader, None)
+        
+        db = get_db()
+        success_count = 0
+        error_count = 0
+        errors = []
+        
+        for row in csv_reader:
+            try:
+                # Expected columns: USN, Name, Email, Phone, Class, Department, Parent Name, Parent Phone, Parent Email
+                if len(row) < 9:
+                    error_count += 1
+                    errors.append(f"Row {csv_reader.line_num}: Insufficient columns")
+                    continue
+                
+                usn = row[0].strip()
+                name = row[1].strip()
+                email = row[2].strip()
+                phone = row[3].strip()
+                class_ = row[4].strip()
+                department = row[5].strip()
+                parent_name = row[6].strip() if len(row) > 6 else ''
+                parent_phone = row[7].strip() if len(row) > 7 else ''
+                parent_email = row[8].strip() if len(row) > 8 else ''
+                
+                if not usn or not name or not email or not class_ or not department:
+                    error_count += 1
+                    errors.append(f"Row {csv_reader.line_num}: Missing required fields (USN, Name, Email, Class, Department)")
+                    continue
+                
+                db.execute(
+                    '''INSERT INTO students 
+                       (usn, name, email, phone, class, department, parent_name, parent_phone, parent_email) 
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                    (usn, name, email, phone, class_, department, parent_name, parent_phone, parent_email)
+                )
+                db.commit()
+                success_count += 1
+                
+            except sqlite3.IntegrityError as e:
+                error_count += 1
+                if 'UNIQUE constraint failed' in str(e):
+                    errors.append(f"Row {csv_reader.line_num}: Duplicate USN or Email - {row[0]}")
+                else:
+                    errors.append(f"Row {csv_reader.line_num}: Database error - {str(e)}")
+            except Exception as e:
+                error_count += 1
+                errors.append(f"Row {csv_reader.line_num}: Error - {str(e)}")
+        
+        if success_count > 0:
+            flash(f'Successfully added {success_count} students.', 'success')
+        if error_count > 0:
+            flash(f'Failed to add {error_count} students. Check errors below.', 'warning')
+            session['upload_errors'] = errors
+        
+        return redirect(url_for('students'))
+    
+    # GET request - show upload form
+    return render_template('bulk_upload.html')
 
 # ------------------------------
 # Reports

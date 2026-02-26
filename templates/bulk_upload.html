@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Bulk Upload Students{% endblock %}
+{% block content %}
+<h1>Bulk Upload Students</h1>
+
+<div class="form-card">
+    <h3>Upload CSV File</h3>
+    <form method="POST" action="{{ url_for('bulk_upload_students') }}" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="csv_file">Select CSV File</label>
+            <input type="file" id="csv_file" name="csv_file" accept=".csv" required>
+        </div>
+
+        <div class="form-group">
+            <button type="submit" class="btn btn-primary">Upload and Import</button>
+            <a href="{{ url_for('students') }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<div class="form-card">
+    <h3>CSV Format Instructions</h3>
+    <p>Your CSV file should have the following columns in this order:</p>
+    <ol>
+        <li><strong>USN</strong> (required) - Unique student number</li>
+        <li><strong>Name</strong> (required) - Student full name</li>
+        <li><strong>Email</strong> (required) - Student email address</li>
+        <li><strong>Phone</strong> - Student phone number</li>
+        <li><strong>Class</strong> (required) - Class name (e.g., F1, E1)</li>
+        <li><strong>Department</strong> (required) - Department/Course (e.g., BCA, BBA)</li>
+        <li><strong>Parent Name</strong> - Parent/Guardian name</li>
+        <li><strong>Parent Phone</strong> - Parent phone number</li>
+        <li><strong>Parent Email</strong> - Parent email address</li>
+    </ol>
+
+    <h4>Sample CSV content:</h4>
+    <pre style="background: #f1f5f9; padding: 15px; border-radius: 8px; overflow-x: auto;"><b>
+USN,Name,Email,Phone,Class,Department,Parent Name,Parent Phone,Parent Email</b>
+U19CJ23S0123,John Doe,john@example.com,9876543210,F2,BCA,Jane Doe,9876543211,jane@example.com</pre>
+
+    <p class="text-muted">Note: The first row (header) is optional but recommended. Required fields must not be empty.
+    </p>
+</div>
+
+{% if session.upload_errors %}
+<div class="form-card" style="background: #fee2e2; border-left: 4px solid #ef4444;">
+    <h3 style="color: #991b1b;">Upload Errors</h3>
+    <ul style="color: #991b1b;">
+        {% for error in session.upload_errors %}
+        <li>{{ error }}</li>
+        {% endfor %}
+    </ul>
+    <form method="POST" action="{{ url_for('clear_upload_errors') }}" style="display: inline;">
+        <button type="submit" class="btn btn-sm btn-delete">Clear Errors</button>
+    </form>
+</div>
+{% endif %}
+
+<style>
+    .text-muted {
+        color: #64748b;
+        font-size: 0.9rem;
+    }
+
+    pre {
+        white-space: pre-wrap;
+        word-wrap: break-word;
+    }
+</style>
+{% endblock %}

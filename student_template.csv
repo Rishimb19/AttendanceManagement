@@ -1,0 +1,3 @@
+USN,Name,Email,Phone,Class,Department,Parent Name,Parent Phone,Parent Email
+U19CJ23S0001,Test Student1,test1@example.com,1234567890,F1,BCA,Parent1,1234567891,parent1@example.com
+U19CJ23S0002,Test Student2,test2@example.com,1234567892,F1,BCA,Parent2,1234567893,parent2@example.com

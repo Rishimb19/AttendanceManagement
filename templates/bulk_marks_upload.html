@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}Bulk Upload Marks{% endblock %}
+{% block content %}
+<h1>Bulk Upload Marks</h1>
+
+<div class="form-card">
+    <h3>Upload Marks CSV File</h3>
+    <form method="POST" action="{{ url_for('bulk_upload_marks') }}" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="csv_file">Select CSV File</label>
+            <input type="file" id="csv_file" name="csv_file" accept=".csv" required>
+        </div>
+
+        <div class="form-group">
+            <button type="submit" class="btn btn-primary">Upload and Import</button>
+            <a href="{{ url_for('marks') }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<div class="form-card">
+    <h3>CSV Format Instructions</h3>
+    <p>Your CSV file should have the following columns in this order:</p>
+    <table class="table" style="margin-bottom: 20px;">
+        <thead>
+            <tr>
+                <th>Column</th>
+                <th>Name</th>
+                <th>Required</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>1</td>
+                <td><strong>Student_USN</strong></td>
+                <td>Yes</td>
+                <td>The USN of the student (must exist in database)</td>
+            </tr>
+            <tr>
+                <td>2</td>
+                <td><strong>Subject_ID</strong></td>
+                <td>Yes</td>
+                <td>The ID of the subject (from subjects table)</td>
+            </tr>
+            <tr>
+                <td>3</td>
+                <td><strong>Exam_Type</strong></td>
+                <td>Yes</td>
+                <td>e.g., Internal, External, Midterm, Final</td>
+            </tr>
+            <tr>
+                <td>4</td>
+                <td><strong>Marks_Obtained</strong></td>
+                <td>Yes</td>
+                <td>Marks obtained (numeric)</td>
+            </tr>
+            <tr>
+                <td>5</td>
+                <td><strong>Max_Marks</strong></td>
+                <td>Yes</td>
+                <td>Maximum marks (numeric)</td>
+            </tr>
+            <tr>
+                <td>6</td>
+                <td><strong>Exam_Date</strong></td>
+                <td>No</td>
+                <td>Date in YYYY-MM-DD format</td>
+            </tr>
+            <tr>
+                <td>7</td>
+                <td><strong>Remarks</strong></td>
+                <td>No</td>
+                <td>Any additional remarks</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h4>Available Subjects (for Subject_ID reference):</h4>
+    <div style="max-height: 300px; overflow-y: auto; margin-bottom: 20px;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Subject Name</th>
+                    <th>Course</th>
+                    <th>Semester</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for subject in subjects %}
+                <tr>
+                    <td>{{ subject.id }}</td>
+                    <td>{{ subject.name }}</td>
+                    <td>{{ subject.course }}</td>
+                    <td>{{ subject.semester }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <h4>Sample CSV content:</h4>
+    <pre style="background: #f1f5f9; padding: 15px; border-radius: 8px; overflow-x: auto;">
+Student_USN,Subject_ID,Exam_Type,Marks_Obtained,Max_Marks,Exam_Date,Remarks
+U23BCA001,1,Internal,42,50,2025-03-15,
+U23BCA001,1,External,78,100,2025-05-20,
+U23BCA001,2,Internal,38,50,2025-03-16,Needs improvement
+U23BCA001,2,External,85,100,2025-05-22,
+U23BCA002,1,Internal,35,50,2025-03-15,
+U23BCA002,1,External,65,100,2025-05-20,</pre>
+
+    <div class="alert alert-info">
+        <strong>Note:</strong>
+        <ul style="margin-top: 5px;">
+            <li>The first row (header) is optional but recommended</li>
+            <li>Student_USN must already exist in the students table</li>
+            <li>Subject_ID must already exist in the subjects table</li>
+            <li>You can upload multiple marks for the same student across different subjects</li>
+            <li>If a marks record already exists (duplicate student+subject+exam_type), it will be rejected</li>
+        </ul>
+    </div>
+</div>
+
+{% if session.marks_upload_errors %}
+<div class="form-card" style="background: #fee2e2; border-left: 4px solid #ef4444;">
+    <h3 style="color: #991b1b;">Upload Errors</h3>
+    <ul style="color: #991b1b; max-height: 300px; overflow-y: auto;">
+        {% for error in session.marks_upload_errors %}
+        <li>{{ error }}</li>
+        {% endfor %}
+    </ul>
+    <form method="POST" action="{{ url_for('clear_marks_upload_errors') }}" style="display: inline;">
+        <button type="submit" class="btn btn-sm btn-delete">Clear Errors</button>
+    </form>
+</div>
+{% endif %}
+
+<style>
+    .text-muted {
+        color: #64748b;
+        font-size: 0.9rem;
+    }
+
+    pre {
+        white-space: pre-wrap;
+        word-wrap: break-word;
+    }
+
+    .alert-info {
+        background: #dbeafe;
+        color: #1e40af;
+        border-left: 4px solid #3b82f6;
+        padding: 15px;
+        border-radius: 8px;
+    }
+</style>
+{% endblock %}
